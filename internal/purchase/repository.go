@@ -16,6 +16,7 @@ import (
 
 type Repository interface {
 	Store(ctx context.Context, purchase Purchase) error
+	Ping(ctx context.Context) error
 }
 
 type MongoRepository struct {
@@ -64,4 +65,11 @@ func toMongoPurchase(p Purchase) mongoPurchase {
 		timeOfPurchase:     p.timeOfPurchase,
 		cardToken:          p.CardToken,
 	}
+}
+
+func (mr *MongoRepository) Ping(ctx context.Context) error {
+	if _, err := mr.purchases.EstimatedDocumentCount(ctx); err != nil {
+		return fmt.Errorf("failed to ping DB: %w", err)
+	}
+	return nil
 }
