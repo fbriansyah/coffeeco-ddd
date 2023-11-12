@@ -49,13 +49,27 @@ type CardChargeService interface {
 	ChargeCard(ctx context.Context, amount money.Money, cardToken string) error
 }
 
+type StoreService interface {
+	GetStoreSpecificDiscount(ctx context.Context, storeID uuid.UUID) (float32, error)
+}
+
 type Service struct {
 	cardService  CardChargeService
 	purchaseRepo Repository
+	storeService StoreService
 }
 
-func (s Service) CompletePurchase(ctx context.Context, purchase *Purchase, coffeeBuxCard *loyalty.CoffeeBux) error {
+func (s Service) CompletePurchase(
+	ctx context.Context,
+	storeID uuid.UUID,
+	purchase *Purchase,
+	coffeeBuxCard *loyalty.CoffeeBux) error {
+
 	if err := purchase.validateAndEnrich(); err != nil {
+		return err
+	}
+
+	if err := s.calculateStoreSpecificDiscount(ctx, storeID, purchase); err != nil {
 		return err
 	}
 
@@ -80,6 +94,21 @@ func (s Service) CompletePurchase(ctx context.Context, purchase *Purchase, coffe
 
 	if coffeeBuxCard != nil && purchase.PaymentMeans != payment.MEANS_COFFEEBUX {
 		coffeeBuxCard.AddStamp()
+	}
+
+	return nil
+}
+
+func (s *Service) calculateStoreSpecificDiscount(ctx context.Context, storeID uuid.UUID, purchase *Purchase) error {
+	discount, err := s.storeService.GetStoreSpecificDiscount(ctx, storeID)
+	if err != nil && err != store.ErrNoDiscount {
+		return fmt.Errorf("failed to get discount: %w", err)
+	}
+
+	purchasePrice := purchase.total
+
+	if discount > float32(0) {
+		purchase.total = *purchasePrice.Multiply(int64(100 - discount))
 	}
 
 	return nil
