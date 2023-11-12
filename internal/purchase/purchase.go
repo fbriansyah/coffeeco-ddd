@@ -45,14 +45,17 @@ func (p *Purchase) validateAndEnrich() error {
 	return nil
 }
 
+// CardChargeService is domain service
 type CardChargeService interface {
 	ChargeCard(ctx context.Context, amount money.Money, cardToken string) error
 }
 
+// StoreService is domain service for store
 type StoreService interface {
 	GetStoreSpecificDiscount(ctx context.Context, storeID uuid.UUID) (float32, error)
 }
 
+// Service is application service
 type Service struct {
 	cardService  CardChargeService
 	purchaseRepo Repository
